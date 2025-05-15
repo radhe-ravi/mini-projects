@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+# Prompt for file name
+FILE_NAME=$1
+
+if [[ -z "$FILE_NAME" ]]; then
+    read -rp "Enter a new property file name (must end with .properties): " FILE_NAME
+    if [[ -z "$FILE_NAME" ]]; then
+        echo "Error: File name cannot be empty."
+        exit 1
+    fi
+fi
+
+# Validate file extension
+if [[ "$FILE_NAME" != *.properties ]]; then
+    echo "Error: File name must end with '.properties'"
+    exit 1
+fi
+
+echo "Property file name: ${FILE_NAME}"
+
+# Prompt for shared DB URL
+read -rp "Enter the shared DB connection URL for all datasource's: " SHARED_DB_URL
+if [[ -z "$SHARED_DB_URL" ]]; then
+    echo "Error: DB URL cannot be empty."
+    exit 1
+fi
+
+# Write properties to the file
+cat > "$FILE_NAME" <<EOF
+# P2P testing
+driverName=org.postgresql.Driver
+
+datasource1url=${SHARED_DB_URL}
+datasource1password=nJrvp3qwYNshb90N8clCVg==
+datasource1username=M2JYpXRuVRAkqmcG96vpDw==
+
+mastersdataSourceurl=${SHARED_DB_URL}
+mastersdataSourcepassword=nJrvp3qwYNshb90N8clCVg==
+mastersdataSourceusername=kJqprR/0A7amLbv3M4sORg==
+
+auctionDataSourceurl=${SHARED_DB_URL}
+auctionDataSourcepassword=nJrvp3qwYNshb90N8clCVg==
+auctionDataSourceusername=Pspr753Mrd12teCbqTaZlQ==
+
+traderdataSourceurl=${SHARED_DB_URL}
+traderdataSourceusername=aRY6CIAxLXKPlZfpWNmsMw==
+traderdataSourcepassword=nJrvp3qwYNshb90N8clCVg==
+
+auditdatasourceurl=${SHARED_DB_URL}
+auditdatasourcepassword=nJrvp3qwYNshb90N8clCVg==
+auditdatasourceusername=tW6/JfzvVn7mGBvbEmr+5g==
+
+portaldatasourceurl=${SHARED_DB_URL}
+portaldatasourceusername=aRY6CIAxLXKPlZfpWNmsMw==
+portaldatasourcepassword=nJrvp3qwYNshb90N8clCVg==
+
+integration.driver.name=oracle.jdbc.driver.OracleDriver
+integrationDataSourceurl=V6yAF7ZOu0eTobz7fB4aurGjWU+2bufYUARRUxwvczDehj7EPqPFsVoiXxTuzJrr
+integrationDataSourcepassword=ZZKcpZUfI4Q5VMu1vscSzA==
+integrationDataSourceusername=qY6IgrpltaAROu1y+425ZA==
+EOF
+
+echo "Property file '${FILE_NAME}' created with shared datasource URLs."
