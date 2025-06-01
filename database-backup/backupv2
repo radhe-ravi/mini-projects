@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -e
+
+# Set the .pgpass path and force usage
+pgPassFile="/home/radhe/shell/mini-projects/database-backup/file"
+export PGPASSFILE="$pgPassFile"
+
+# Set configuration
+port="5432"
+date=$(date +"%d-%b-%Y")
+backupRoot="backed-up/db-dumps/$date"
+logFile="dbbackup_logs/pg_backup_$date.log"
+
+# Ensure directories exist
+mkdir -p "$backupRoot"
+mkdir -p "$(dirname "$logFile")"
+touch "$logFile"
+
+log() {
+    local message="$1"
+    local timestamp
+    timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "$timestamp - $message" | tee -a "$logFile"
+}
+
+# Extract unique, valid hostnames and usernames from .pgpass
+declare -A hostUserMap
+while IFS=: read -r hostname _ _ username _; do
+    if [[ -n "$hostname" && -n "$username" ]]; then
+        hostUserMap["$hostname"]="$username"
+    fi
+done < <(grep -vE '^(#|$)' "$pgPassFile")
+
+log "Found hosts and their respective users in .pgpass:"
+for host in "${!hostUserMap[@]}"; do
+    log "  → Host: $host, User: ${hostUserMap[$host]}"
+done
+
+log "Starting backup from listed hosts..."
+for hostName in "${!hostUserMap[@]}"; do
+    user="${hostUserMap[$hostName]}"
+    log "Connecting to host: $hostName with user: $user"
+
+    backupDir="$backupRoot/$hostName"
+    mkdir -p "$backupDir"
+
+    databases=$(psql -h "$hostName" -p "$port" -U "$user" -d postgres -t -c \
+        "SELECT datname FROM pg_database WHERE datistemplate = false AND datname NOT IN ('postgres', 'quartz', 'support');" 2>>"$logFile")
+
+    echo "$databases" | while read -r db; do
+        db=$(echo "$db" | xargs)
+        [[ -z "$db" ]] && continue
+
+        backupFile="$backupDir/$db.sql.gz"
+        log "Backing up database '$db' from host '$hostName'"
+
+        if pg_dump -h "$hostName" -p "$port" -U "$user" "$db" | gzip > "$backupFile" 2>>"$logFile"; then
+            log "Success: $db on $hostName"
+        else
+            log "Failed: $db on $hostName"
+        fi
+    done
+done
+
+log "All backups from all hosts complete."
